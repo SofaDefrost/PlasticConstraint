@@ -1,2 +1,4 @@
 # PlasticConstraint
-Plugin experimenting plasticity defined by a constraint
+
+## Description
+A SOFA plugin experimenting plasticity defined by a constraint
