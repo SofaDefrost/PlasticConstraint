@@ -8,13 +8,17 @@
 #include <sofa/defaulttype/VecTypes.h>
 #include <sofa/defaulttype/RigidTypes.h>
 #include <sofa/type/vector.h>
-
+#include <sofa/core/DataEngine.h>
+#include <sofa/core/topology/BaseMeshTopology.h>
+#include <sofa/core/objectmodel/Link.h>
 
 namespace sofa::component::mapping::linear
 {
 
 template <class TIn, class TOut>
 class StressMapping : public LinearMapping<TIn, TOut>
+
+
 {
 public:
     SOFA_CLASS(SOFA_TEMPLATE2(StressMapping,TIn,TOut), SOFA_TEMPLATE2(LinearMapping,TIn,TOut));
@@ -63,6 +67,8 @@ public:
 protected:
     StressMapping()
         : Inherit()
+        , l_inputTopology(initLink("inputTopology", "Link to the input topology"))
+        , m_topology(nullptr)
     {
         Js.resize( 1 );
         Js[0] = &J;
@@ -81,7 +87,7 @@ public:
 
     void init() override;
 
-    void apply(const core::MechanicalParams *mparams, Data<VecCoord>& out, const Data<InVecCoord>& in) override;
+    void apply(const core::MechanicalParams* mparams, Data<VecCoord>& out, const Data<InVecCoord>& in) override; 
 
     void applyJ(const core::MechanicalParams *mparams, Data<VecDeriv>& out, const Data<InVecDeriv>& in) override;
 
@@ -93,7 +99,6 @@ public:
 
     void handleTopologyChange() override;
 
-
 protected:
 
     typedef linearalgebra::EigenSparseMatrix<TIn, TOut> eigen_type;
@@ -101,6 +106,12 @@ protected:
 
     typedef type::vector< linearalgebra::BaseMatrix* > js_type;
     js_type Js;
+
+    SingleLink<StressMapping<TIn, TOut>,
+               sofa::core::topology::BaseMeshTopology,
+               BaseLink::FLAG_STOREPATH> l_inputTopology;
+
+    sofa::core::topology::BaseMeshTopology* m_topology;
 
 public:
 

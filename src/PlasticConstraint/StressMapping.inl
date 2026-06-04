@@ -1,117 +1,130 @@
 #pragma once
 #include <PlasticConstraint/StressMapping.h>
 #include <sofa/core/MappingHelper.h>
+#include <sofa/core/visual/VisualParams.h>
 
+#include <algorithm>  // std::sort
 
 namespace sofa::component::mapping::linear
 {
 
+using sofa::core::objectmodel::ComponentState;
+using sofa::helper::ReadAccessor;
+using sofa::helper::WriteAccessor;
+using sofa::core::visual::VisualParams;
+using sofa::type::vector;
 
 template<class TIn, class TOut>
 void StressMapping<TIn, TOut>::init()
 {
-    const auto n = this->fromModel->getSize();
+    m_topology = l_inputTopology.get();
+    if (!m_topology)
+        this->getContext()->get(m_topology);
 
-    this->toModel->resize( n );
+    if (!m_topology)
+    {
+        msg_error() << "No input topology found. StressMapping requires a TetrahedronSetTopology.";
+        this->d_componentState.setValue(ComponentState::Invalid);
+        return;
+    }
+
+    const auto& tetras  = m_topology->getTetrahedra();
+    const auto  nTetras = tetras.size();
+    const auto  nNodes  = this->fromModel->getSize();
+
+    this->toModel->resize(nTetras);
 
     Inherit::init();
 
+    // Build J: (nTetras * NOut) x (nNodes * NIn)
+    // Each output row i has 4 entries of 0.25 at columns t[0..3]
+    J.compressedMatrix.resize(nTetras * NOut, nNodes * NIn);
+    J.compressedMatrix.reserve(nTetras * 4 * NOut);
 
-    // build J
+    for (size_t i = 0; i < nTetras; ++i)
     {
-        static const unsigned N = std::min<unsigned>(NIn, NOut);
+        const auto& t = tetras[i];
 
-        J.compressedMatrix.resize( n*NOut, n*NIn );
-        J.compressedMatrix.reserve( n*N );
+        sofa::type::fixed_array<sofa::Index, 4> nodes = { t[0], t[1], t[2], t[3] };
+        std::sort(nodes.begin(), nodes.end());
 
-        for( size_t i=0 ; i<n ; ++i )
+        for (unsigned r = 0; r < NOut; ++r)
         {
-            for(unsigned r = 0; r < N; ++r)
+            const auto row = NOut * i + r;
+            J.compressedMatrix.startVec(row);
+            for (auto nodeIdx : nodes)
             {
-                const auto row = NOut * i + r;
-                J.compressedMatrix.startVec( row );
-                const auto col = NIn * i + r;
-                J.compressedMatrix.insertBack( row, col ) = (OutReal)1;
+                J.compressedMatrix.insertBack(row, NIn * nodeIdx + r) = (OutReal)0.25;
             }
         }
-        J.compressedMatrix.finalize();
     }
-
+    J.compressedMatrix.finalize();
 }
 
 template <class TIn, class TOut>
-void StressMapping<TIn, TOut>::apply(const core::MechanicalParams * /*mparams*/, Data<VecCoord>& dOut, const Data<InVecCoord>& dIn)
+void StressMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mparams*/, Data<VecCoord>& dOut, const Data<InVecCoord>& dIn)
 {
-    helper::WriteOnlyAccessor< Data<VecCoord> > out = dOut;
-    helper::ReadAccessor< Data<InVecCoord> > in = dIn;
-
-    for(Size i=0; i<out.size(); i++)
+    if (!m_topology)
     {
-        core::eq(out[i], in[i]);
+        msg_error() << "Missing topology in apply().";
+        return;
+    }
+
+    helper::WriteOnlyAccessor<Data<VecCoord>> out = dOut;
+    helper::ReadAccessor<Data<InVecCoord>>    in  = dIn;
+
+    const auto& tetras = m_topology->getTetrahedra();
+    out.resize(tetras.size());
+
+    for (size_t i = 0; i < tetras.size(); ++i)
+    {
+        const auto& t = tetras[i];
+        for (unsigned int c = 0; c < Out::spatial_dimensions; ++c)
+        {
+            out[i][c] = (OutReal)0.25 * (in[t[0]][c] + in[t[1]][c] + in[t[2]][c] + in[t[3]][c]);
+        }    
     }
 }
 
 template <class TIn, class TOut>
-void StressMapping<TIn, TOut>::applyJ(const core::MechanicalParams * /*mparams*/, Data<VecDeriv>& dOut, const Data<InVecDeriv>& dIn)
+void StressMapping<TIn, TOut>::applyJ(const core::MechanicalParams* /*mparams*/, Data<VecDeriv>& dOut, const Data<InVecDeriv>& dIn)
 {
-    helper::WriteOnlyAccessor< Data<VecDeriv> > out = dOut;
-    helper::ReadAccessor< Data<InVecDeriv> > in = dIn;
+    helper::WriteOnlyAccessor<Data<VecDeriv>> out = dOut;
+    helper::ReadAccessor<Data<InVecDeriv>>    in  = dIn;
 
-    for( size_t i=0 ; i<out.size() ; ++i)
+    if (!m_topology) return;
+
+    const auto& tetras = m_topology->getTetrahedra();
+    out.resize(tetras.size());
+
+    for (size_t i = 0; i < tetras.size(); ++i)
     {
-        core::eq(out[i], in[i]);
+        const auto& t = tetras[i];
+        for (unsigned int c = 0; c < Out::spatial_dimensions; ++c)
+        {
+            out[i][c] = (OutReal)0.25 * (in[t[0]][c] + in[t[1]][c] + in[t[2]][c] + in[t[3]][c]);
+        }    
     }
 }
 
 template<class TIn, class TOut>
-void StressMapping<TIn, TOut>::applyJT(const core::MechanicalParams * /*mparams*/, Data<InVecDeriv>& dOut, const Data<VecDeriv>& dIn)
+void StressMapping<TIn, TOut>::applyJT(const core::MechanicalParams* /*mparams*/, Data<InVecDeriv>& dOut, const Data<VecDeriv>& dIn)
 {
-    helper::WriteAccessor< Data<InVecDeriv> > out = dOut;
-    helper::ReadAccessor< Data<VecDeriv> > in = dIn;
 
-    for( size_t i=0 ; i<out.size() ; ++i)
-    {
-        core::peq(out[i], in[i]);
-    }
 }
 
 template <class TIn, class TOut>
-void StressMapping<TIn, TOut>::applyJT(const core::ConstraintParams * /*cparams*/, Data<InMatrixDeriv>& dOut, const Data<MatrixDeriv>& dIn)
+void StressMapping<TIn, TOut>::applyJT(const core::ConstraintParams* /*cparams*/, Data<InMatrixDeriv>& dOut, const Data<MatrixDeriv>& dIn)
 {
-    InMatrixDeriv& out = *dOut.beginEdit();
-    const MatrixDeriv& in = dIn.getValue();
-
-    typename Out::MatrixDeriv::RowConstIterator rowItEnd = in.end();
-
-    for (typename Out::MatrixDeriv::RowConstIterator rowIt = in.begin(); rowIt != rowItEnd; ++rowIt)
-    {
-        typename Out::MatrixDeriv::ColConstIterator colIt = rowIt.begin();
-        typename Out::MatrixDeriv::ColConstIterator colItEnd = rowIt.end();
-
-        // Creates a constraints if the input constraint is not empty.
-        if (colIt != colItEnd)
-        {
-            auto o = out.writeLine(rowIt.index());
-
-            while (colIt != colItEnd)
-            {
-                InDeriv data;
-                core::eq(data, colIt.val());
-
-                o.addCol(colIt.index(), data);
-
-                ++colIt;
-            }
-        }
-    }
-
-    dOut.endEdit();
+ 
 }
 
 template <class TIn, class TOut>
 void StressMapping<TIn, TOut>::handleTopologyChange()
 {
-    if ( this->toModel && this->fromModel && this->toModel->getSize() != this->fromModel->getSize()) this->init();
+    if (this->toModel && this->fromModel &&
+        this->toModel->getSize() != this->fromModel->getSize())
+        this->init();
 }
 
 template <class TIn, class TOut>

@@ -1,0 +1,26 @@
+
+--- NEW SESSION: 21/05/2026 15:06:42 ---
+/finger/cable/aCableActuator.group = 5
+/finger/cable/aCableActuator.cableLength = 145.073
+/finger/cable/aCableActuator.force = 15
+/finger/cable/aCableActuator.displacement = 20.1675
+/finger/cable/aCableActuator.color = 0.4 0.4 0.4 1
+/finger/cable/aCableActuator.valueType = force
+/finger/FEM.youngModulus = 600
+
+--- NEW SESSION: 02/06/2026 16:40:03 ---
+/finger/stress/centresDeGravité.showObjectScale = 3.29
+/finger/stress/centresDeGravité.showColor = 1 1 1 1
+/finger/stress/centresDeGravité.showColor = 1 1 1 1
+
+--- NEW SESSION: 02/06/2026 16:43:37 ---
+/finger/stress/centresDeGravité.showObjectScale = 4.49
+/finger/stress/centresDeGravité.showColor = 1 1 1 1
+/finger/stress/centresDeGravité.showColor = 1 1 1 1
+/finger/stress/centresDeGravité.showObject = 1
+/finger/stress/centresDeGravité.showObjectScale = 5.75
+/finger/stress/centresDeGravité.showColor = 1 1 1 1
+/finger/stress/centresDeGravité.showColor = 1 1 1 1
+
+--- NEW SESSION: 04/06/2026 13:51:18 ---
+/finger/stress/centresDeGravité.showColor = 1 1 1 1

@@ -44,6 +44,7 @@ def createScene(rootNode):
 
     visu = tshirt.addChild('Visu')
     visu.addObject('OglModel', name='Visual', color='red')
+
     visu.addObject('StressMapping', input='@..', output='@Visual')
 
     return rootNode
