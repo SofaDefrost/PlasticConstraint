@@ -8,9 +8,11 @@
 #include <sofa/defaulttype/VecTypes.h>
 #include <sofa/defaulttype/RigidTypes.h>
 #include <sofa/type/vector.h>
+#include <sofa/type/Mat.h>
 #include <sofa/core/DataEngine.h>
 #include <sofa/core/topology/BaseMeshTopology.h>
 #include <sofa/core/objectmodel/Link.h>
+//#include <sofa/component/solidmechanics/fem/elastic/TetrahedronFEMForceField.h>
 
 namespace sofa::component::mapping::linear
 {
@@ -22,6 +24,7 @@ class StressMapping : public LinearMapping<TIn, TOut>
 {
 public:
     SOFA_CLASS(SOFA_TEMPLATE2(StressMapping,TIn,TOut), SOFA_TEMPLATE2(LinearMapping,TIn,TOut));
+    //sofa::component::forcefield::TetrahedronFEMForceField<TIn>* m_femFF = nullptr;
 
     typedef LinearMapping<TIn, TOut> Inherit;
     typedef TIn In;
@@ -69,6 +72,9 @@ protected:
         : Inherit()
         , l_inputTopology(initLink("inputTopology", "Link to the input topology"))
         , m_topology(nullptr)
+        , d_youngModulus(initData(&d_youngModulus, {Real(5000)}, "youngModulus", "FEM Young's Modulus"))
+        , d_poissonRatio(initData(&d_poissonRatio, {Real(0.45)}, "poissonRatio", "FEM Poisson Ratio"))
+
     {
         Js.resize( 1 );
         Js[0] = &J;
@@ -112,24 +118,27 @@ protected:
                BaseLink::FLAG_STOREPATH> l_inputTopology;
 
     sofa::core::topology::BaseMeshTopology* m_topology;
+    
+    typedef type::VecNoInit<6,Real> VoigtTensor;
+
+    /// structures used to compute vonMises stress
+    typedef type::Mat<4, 4, Real> Mat44;
+    typedef type::Mat<3, 3, Real> Mat33;
 
 public:
 
     const js_type* getJs() override;
+    Data<InVecCoord> d_initialPoints;
+    Data<sofa::type::vector<Real>> d_youngModulus;
+    Data<sofa::type::vector<Real>> d_poissonRatio;
+    type::vector<Mat44> elemShapeFun;
+
 
 };
 
 #if !defined(PLASTICCONSTRAINT_STRESSMAPPING_CPP)
 
-extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Vec3Types, defaulttype::Vec3Types >;
-extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Vec2Types, defaulttype::Vec2Types >;
-extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Vec1Types, defaulttype::Vec1Types >;
-extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Vec6Types, defaulttype::Vec6Types >;
-extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Vec6Types, defaulttype::Vec3Types >;
-extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Rigid3Types, defaulttype::Rigid3Types >;
-extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Rigid2Types, defaulttype::Rigid2Types >;
-extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Rigid3Types, defaulttype::Vec3Types >;
-extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Rigid2Types, defaulttype::Vec2Types >;
+extern template class SOFA_COMPONENT_MAPPING_LINEAR_API StressMapping< defaulttype::Vec3Types, defaulttype::Vec6Types >;
 
 #endif
 

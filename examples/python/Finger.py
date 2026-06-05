@@ -60,7 +60,7 @@ def createScene(rootNode):
 
     # Add a TetrahedronFEMForceField component which implement an elastic material model solved using the Finite Element Method on
     #  tetrahedrons.
-    finger.addObject('TetrahedronFEMForceField', template='Vec3', name='FEM', method='large', poissonRatio=0.45,
+    finger.addObject('TetrahedronFEMForceField', template='Vec3', name='FEM', method='small', poissonRatio=0.45,
                      youngModulus=600)
 
     # To facilitate the selection of DoFs, SOFA has a concept called ROI (Region of Interest).
@@ -144,9 +144,8 @@ def createScene(rootNode):
     fingerVisu.addObject('BarycentricMapping')
 
     stressnode = finger.addChild('stress')
-    stressnode.addObject('MechanicalObject', name="centresDeGravité")
-    stressnode.addObject('StressMapping', inputTopology="@/finger/container")
-    #stressnode.addObject('StressMapping', input='@..', output='@Visual')
+    stressnode.addObject('MechanicalObject', template='Vec6', name="Stress")
+    stressnode.addObject('StressMapping', template='Vec3,Vec6', input='@../tetras', output='@Stress', inputTopology='@../container', youngModulus=600, poissonRatio=0.45)
 
 
     return rootNode
