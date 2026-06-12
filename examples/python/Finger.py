@@ -60,7 +60,7 @@ def createScene(rootNode):
 
     # Add a TetrahedronFEMForceField component which implement an elastic material model solved using the Finite Element Method on
     #  tetrahedrons.
-    finger.addObject('TetrahedronFEMForceField', template='Vec3', name='FEM', method='small', poissonRatio=0.45,
+    finger.addObject('TetrahedronFEMForceField', template='Vec3', name='FEM', method='large', poissonRatio=0.45,
                      youngModulus=600)
 
     # To facilitate the selection of DoFs, SOFA has a concept called ROI (Region of Interest).

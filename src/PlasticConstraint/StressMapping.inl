@@ -151,6 +151,7 @@ void StressMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mparams*/, 
         
         out[i] = s;
     }
+    
 }
 
 template <class TIn, class TOut>
@@ -219,18 +220,112 @@ void StressMapping<TIn, TOut>::applyJ(const core::MechanicalParams* /*mparams*/,
         
         out[i] = s;
     }
+
 }
 
 template<class TIn, class TOut>
 void StressMapping<TIn, TOut>::applyJT(const core::MechanicalParams* /*mparams*/, Data<InVecDeriv>& dOut, const Data<VecDeriv>& dIn)
 {
 
+    helper::WriteAccessor<Data<InVecDeriv>> out = dOut;
+    helper::ReadAccessor<Data<VecDeriv>>    in  = dIn;
+
+    if (!m_topology) return;
+
+    const auto& tetras = m_topology->getTetrahedra();
+    Real y = d_youngModulus.getValue()[0];
+    Real p = d_poissonRatio.getValue()[0];
+
+
+    for (size_t i = 0; i < tetras.size(); ++i)
+    {
+        const auto& it   = tetras[i];
+        const Mat44& shf = elemShapeFun[i];
+        const VoigtTensor& s = in[i];
+
+        Real trSigma = s[0] + s[1] + s[2];
+        VoigtTensor eps; //epsilon
+
+        for (Index k = 0; k < 3; k++)
+            eps[k] = ((1+p) * s[k] - p * trSigma) / y;
+        for (Index k = 3; k < 6; k++)
+            eps[k] = ((1+p) * s[k]) / y;
+    
+        Mat33 gradU;
+        for (Index k = 0; k < 3; k++)
+            gradU(k, k) = eps[k]; //remplit la diagonale
+        gradU(1,2) = gradU(2,1) = eps[3];
+        gradU(0,2) = gradU(2,0) = eps[4];
+        gradU(0,1) = gradU(1,0) = eps[5];
+
+        for (Index m = 0; m < 4; m++)
+            for (Index k = 0; k < 3; k++)
+                for (Index l = 0; l < 3; l++)
+                    out[it[m]][k] += shf(l+1, m) * gradU(k, l);
+    }
+ //recuperer sigma (the stress)
+ //appliquer la formule de la loi de hooke pour trouver epsilon :
+ // tr = s[0] + s[1] + s[2] car sigma est un vecteur colonne de 6 elem qui correspondent a une mat symetrique
+ // vec a = (1 + poisson)*s
+ // b = poisson * tr
+ // vec b = (b b b 0 0 0) (mais sous forme colonne)
+ // eps = (1/young) * (vec a - vec b)
+ //retrouver U depuis epsilon en utilisant la transposee de shf 
+ // U = eps * shfT
+
 }
 
 template <class TIn, class TOut>
 void StressMapping<TIn, TOut>::applyJT(const core::ConstraintParams* /*cparams*/, Data<InMatrixDeriv>& dOut, const Data<MatrixDeriv>& dIn)
 {
- 
+
+    InMatrixDeriv& out = *dOut.beginEdit();
+    const MatrixDeriv& in = dIn.getValue();
+
+    if (!m_topology) return;
+
+    const auto& tetras = m_topology->getTetrahedra();
+    Real y = d_youngModulus.getValue()[0];
+    Real p = d_poissonRatio.getValue()[0];
+
+    for (typename Out::MatrixDeriv::RowConstIterator rowIt = in.begin(); rowIt != in.end(); ++rowIt)
+    {
+        auto o = out.writeLine(rowIt.index());
+        for (typename Out::MatrixDeriv::ColConstIterator colIt = rowIt.begin(); colIt != rowIt.end(); ++colIt)
+        {
+            // colIt.index() = index du tétraèdre
+            // colIt.val() = VoigtTensor (6 composantes de stress)
+            const Index tetraIdx = colIt.index();
+            const VoigtTensor& s = colIt.val();
+            const auto& it  = tetras[tetraIdx];
+            const Mat44& shf = elemShapeFun[tetraIdx];
+
+            Real trSigma = s[0] + s[1] + s[2];
+            VoigtTensor eps;
+            
+            for (Index k = 0; k < 3; k++)
+                eps[k] = ((1+p) * s[k] - p * trSigma) / y;
+            for (Index k = 3; k < 6; k++)
+                eps[k] = ((1+p) * s[k]) / y;
+        
+            Mat33 gradU;
+            for (Index k = 0; k < 3; k++)
+                gradU(k, k) = eps[k]; //remplit la diagonale
+            gradU(1,2) = gradU(2,1) = eps[3];
+            gradU(0,2) = gradU(2,0) = eps[4];
+            gradU(0,1) = gradU(1,0) = eps[5];
+
+            for (Index m = 0; m < 4; m++)
+                for (Index k = 0; k < 3; k++)
+                    for (Index l = 0; l < 3; l++){
+                        InDeriv d;
+                        d[k] = shf(l+1, m) * gradU(k, l);
+                        o.addCol(it[m], d);
+                }
+        }
+    }
+    dOut.endEdit();
+ //recuperer colonnes des matrices et appliquer le meme processus que dans le applyJT precedent sur chaque colonne
 }
 
 template <class TIn, class TOut>
