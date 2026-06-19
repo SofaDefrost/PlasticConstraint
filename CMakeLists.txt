@@ -9,11 +9,13 @@ set(HEADER_FILES
     src/PlasticConstraint/init.h
     src/PlasticConstraint/LinearMapping.h
     src/PlasticConstraint/StressMapping.h
+    src/PlasticConstraint/BoxLagrangianConstraint.h
 )
 
 set(SOURCE_FILES
     src/PlasticConstraint/init.cpp
     src/PlasticConstraint/StressMapping.cpp
+    src/PlasticConstraint/BoxLagrangianConstraint.cpp
 )
 
 add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES})

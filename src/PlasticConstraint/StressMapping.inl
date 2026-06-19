@@ -220,7 +220,15 @@ void StressMapping<TIn, TOut>::applyJ(const core::MechanicalParams* /*mparams*/,
         
         out[i] = s;
     }
+    // Data<InVecDeriv> testOut;
+    // InVecDeriv tmp(this->fromModel->getSize());
+    // testOut.setValue(tmp);
 
+    // applyJT(nullptr, testOut, dOut);  // dOut = le stress qu'on vient de calculer
+
+    // const InVecDeriv& res = testOut.getValue();
+    // for (size_t n = 0; n < res.size(); ++n)
+    //     msg_info() << "node " << n << " displacement from applyJT: " << res[n];
 }
 
 template<class TIn, class TOut>
