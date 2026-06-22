@@ -15,7 +15,7 @@ using sofa::core::VecCoordId;
 template<class DataTypes>
 BoxLagrangianConstraint<DataTypes>::BoxLagrangianConstraint(MechanicalState* object)
     : Inherit(object)
-    , d_index(initData(&d_index, 0, "index", "index of the stop constraint"))
+    , d_indices(initData(&d_indices, "index", "index of the stop constraint"))
     , d_min(initData(&d_min, -100.0_sreal, "min", "minimum value accepted"))
     , d_max(initData(&d_max, 100.0_sreal, "max", "maximum value accepted"))
 {
@@ -25,23 +25,34 @@ template<class DataTypes>
 void BoxLagrangianConstraint<DataTypes>::buildConstraintMatrix(const sofa::core::ConstraintParams* /*cParams*/, DataMatrixDeriv &c_d, unsigned int &cIndex, const DataVecCoord &/*x*/)
 {
     auto c = sofa::helper::getWriteAccessor(c_d);
+    const auto& indices = d_indices.getValue();
 
-    MatrixDerivRowIterator c_it = c->writeLine(cIndex++);
-    c_it.setCol(d_index.getValue(), Coord(1,0,0));
+    for (const auto idx : indices)
+    {
+        MatrixDerivRowIterator c_it = c->writeLine(cIndex++);
+        c_it.setCol(idx, Coord(1,0,0,0,0,0));
+    }
 }
 
 template<class DataTypes>
 void BoxLagrangianConstraint<DataTypes>::getConstraintViolation(const sofa::core::ConstraintParams* /*cParams*/, sofa::linearalgebra::BaseVector *resV, const DataVecCoord &x, const DataVecDeriv &/*v*/)
 {
     const auto constraintIndex = this->d_constraintIndex.getValue();
-    resV->set(constraintIndex, x.getValue()[d_index.getValue()][0]);
+    const auto& indices = d_indices.getValue();
+    const auto& xValue = x.getValue();
+
+    for (size_t i = 0; i < indices.size(); ++i)
+    {
+        resV->set(constraintIndex + i, xValue[indices[i]][0]);
+    }
 }
 
 template<class DataTypes>
 void BoxLagrangianConstraint<DataTypes>::getConstraintResolution(const sofa::core::ConstraintParams *, std::vector<sofa::core::behavior::ConstraintResolution*>& resTab, unsigned int& offset)
 {
-    for(int i=0; i<1; i++)
+    const auto& indices = d_indices.getValue();
+
+    for (size_t i = 0; i < indices.size(); ++i)
         resTab[offset++] = new BoxLagrangianConstraintResolution1Dof(d_min.getValue(), d_max.getValue());
 }
-
 } //namespace sofa::component::constraint::lagrangian::model
