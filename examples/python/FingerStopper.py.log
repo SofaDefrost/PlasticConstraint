@@ -20,3 +20,44 @@
 /finger/box/MechanicalObject.showObjectScale = 8.17
 /finger/box/MechanicalObject.drawMode = -3
 /finger/box/MechanicalObject.showColor = 0.964706 0.380392 0.317647 1
+
+--- NEW SESSION: 19/06/2026 17:37:19 ---
+/finger/stress/Stress.showObject = 1
+/finger/stress/Stress.showObjectScale = 6.48
+/finger/stress/Stress.drawMode = -2
+/finger/stress/Stress.showColor = 0.878431 0.105882 0.141176 1
+
+--- NEW SESSION: 19/06/2026 17:38:44 ---
+/finger/stress/Stress.showObject = 1
+/finger/stress/Stress.showObjectScale = 7.16
+/finger/stress/Stress.showColor = 0.109804 0.443137 0.847059 1
+
+--- NEW SESSION: 19/06/2026 17:40:22 ---
+/finger/stress/box/MechanicalObject.showObject = 1
+/finger/stress/box/MechanicalObject.showObjectScale = 10.09
+/finger/stress/box/MechanicalObject.drawMode = -2
+/finger/stress/box/MechanicalObject.showColor = 0.180392 0.760784 0.494118 1
+
+--- NEW SESSION: 22/06/2026 11:28:50 ---
+/finger/stress/box/MechanicalObject.showObject = 1
+/finger/stress/box/MechanicalObject.showObjectScale = 8.11
+/finger/stress/box/MechanicalObject.showColor = 0.964706 0.827451 0.176471 1
+/finger/stress/box/MechanicalObject.showColor = 0.964706 0.827451 0.176471 1
+
+--- NEW SESSION: 22/06/2026 12:00:45 ---
+/finger/stress/box/MechanicalObject.showObject = 1
+/finger/stress/box/MechanicalObject.showObjectScale = 8.98
+/finger/stress/box/MechanicalObject.showColor = 0.964706 0.827451 0.176471 1
+
+--- NEW SESSION: 22/06/2026 12:05:14 ---
+/finger/stress/box/MechanicalObject.showObject = 1
+/finger/stress/box/MechanicalObject.showObjectScale = 7.92
+/finger/stress/box/MechanicalObject.showColor = 0.960784 0.760784 0.0666667 1
+
+--- NEW SESSION: 22/06/2026 14:55:19 ---
+/finger/stress/box/MechanicalObject.showObject = 1
+/finger/stress/box/MechanicalObject.showObjectScale = 8.39
+/finger/stress/box/MechanicalObject.showColor = 0.960784 0.760784 0.0666667 1
+
+--- NEW SESSION: 22/06/2026 15:49:34 ---
+/finger/stress/Stress.showColor = 1 1 1 1

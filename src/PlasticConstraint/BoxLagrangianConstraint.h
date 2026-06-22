@@ -67,7 +67,7 @@ public:
 protected:
 
 
-    sofa::Data<int> d_index; ///< index of the stop constraint
+    sofa::Data<sofa::type::vector<unsigned int>> d_indices; ///< indices of the stop constraints
     sofa::Data<SReal> d_min; ///< minimum value accepted
     sofa::Data<SReal> d_max; ///< maximum value accepted
 
@@ -78,7 +78,7 @@ protected:
     virtual ~BoxLagrangianConstraint() {}
 
 
-    virtual sofa::type::vector<std::string> getConstraintIdentifiers() override final
+    virtual sofa::type::vector<std::string> getConstraintIdentifiers() //override final
     {
         sofa::type::vector<std::string> ids = getStopperIdentifiers();
         ids.push_back("Stopper");

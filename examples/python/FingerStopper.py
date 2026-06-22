@@ -129,11 +129,11 @@ def createScene(rootNode):
     #  file named "controller.py".
     cable.addObject(FingerController(name="FingerController", node=cable))
 
-    stopper = finger.addChild('box')
-    stopper.addObject('MechanicalObject',
-                    position=[[-95, 5, 7.5]])
-    stopper.addObject('BoxLagrangianConstraint', name="bertrand", index=0, min=-85, max=-75)
-    stopper.addObject('BarycentricMapping')
+    # stopper = finger.addChild('box')
+    # stopper.addObject('MechanicalObject',
+    #                 position=[[-95, 5, 7.5]])
+    # stopper.addObject('BoxLagrangianConstraint', name="bertrand", indices=[0], min=-85, max=-75)
+    # stopper.addObject('BarycentricMapping')
 
     ##########################################
     # Visualization                          #
@@ -152,6 +152,12 @@ def createScene(rootNode):
     stressnode = finger.addChild('stress')
     stressnode.addObject('MechanicalObject', template='Vec6', name="Stress")
     stressnode.addObject('StressMapping', template='Vec3,Vec6', input='@../tetras', output='@Stress', inputTopology='@../container', youngModulus=600, poissonRatio=0.45)
+    # stressnode.addObject('BoxLagrangianConstraint', name="bertrand", indices=[0,1], min=-75, max=-15)
+    # stressnode.addObject('GenericConstraintCorrection')
+    stopper = stressnode.addChild('box')
+    stopper.addObject('MechanicalObject', template='Vec6', position=[[-95, 5, 7.5]])
+    stopper.addObject('BoxLagrangianConstraint', name="bertrand", indices=[0,1], min=-30, max=-15)
+    stopper.addObject('StressMapping')
 
 
     return rootNode
