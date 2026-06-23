@@ -149,16 +149,24 @@ def createScene(rootNode):
     # Add a BarycentricMapping to deform the rendering model in a way that follow the ones of the parent mechanical model.
     fingerVisu.addObject('BarycentricMapping')
 
-    stressnode = finger.addChild('stress')
-    stressnode.addObject('MechanicalObject', template='Vec6', name="Stress")
-    stressnode.addObject('StressMapping', template='Vec3,Vec6', input='@../tetras', output='@Stress', inputTopology='@../container', youngModulus=600, poissonRatio=0.45)
-    # stressnode.addObject('BoxLagrangianConstraint', name="bertrand", indices=[0,1], min=-75, max=-15)
-    # stressnode.addObject('GenericConstraintCorrection')
-    stopper = stressnode.addChild('box')
-    stopper.addObject('MechanicalObject', template='Vec6', position=[[-95, 5, 7.5]])
-    stopper.addObject('BoxLagrangianConstraint', name="bertrand", indices=[0,1], min=-30, max=-15)
-    stopper.addObject('StressMapping')
+    # stressnode = finger.addChild('stress')
+    # stressnode.addObject('MechanicalObject', template='Vec6', name="Stress")
+    # stressnode.addObject('StressMapping', template='Vec3,Vec6', input='@../tetras', output='@Stress', inputTopology='@../container', youngModulus=600, poissonRatio=0.45)
+    
 
+    #--------------------------------------------------------
+    #le paragraphe suivant sert a tester la version avec vec3
+
+    # stopper = finger.addChild('box')
+    # stopper.addObject('MechanicalObject', position=[[-95, 5, 7.5]])
+    # stopper.addObject('BoxLagrangianConstraint', name="bertrand", indices=[0,1,4, 100], min=-60, max=5)
+    # stopper.addObject('BarycentricMapping')
+
+
+    Plastic = finger.addChild('Plastic')
+    Plastic.addObject('MechanicalObject', template='Vec6', name="Stress")
+    Plastic.addObject('BoxLagrangianConstraint', name="boxConstraint", indices=[0] , min=-40, max=30)
+    Plastic.addObject('StressMapping', template='Vec3,Vec6', input='@../tetras', output='@Stress', inputTopology='@../container', youngModulus=600, poissonRatio=0.45)
 
     return rootNode
 

@@ -15,7 +15,7 @@ using sofa::core::VecCoordId;
 template<class DataTypes>
 BoxLagrangianConstraint<DataTypes>::BoxLagrangianConstraint(MechanicalState* object)
     : Inherit(object)
-    , d_indices(initData(&d_indices, "index", "index of the stop constraint"))
+    , d_indices(initData(&d_indices, "indices", "indices of the stop constraint"))
     , d_min(initData(&d_min, -100.0_sreal, "min", "minimum value accepted"))
     , d_max(initData(&d_max, 100.0_sreal, "max", "maximum value accepted"))
 {
@@ -24,12 +24,14 @@ BoxLagrangianConstraint<DataTypes>::BoxLagrangianConstraint(MechanicalState* obj
 template<class DataTypes>
 void BoxLagrangianConstraint<DataTypes>::buildConstraintMatrix(const sofa::core::ConstraintParams* /*cParams*/, DataMatrixDeriv &c_d, unsigned int &cIndex, const DataVecCoord &/*x*/)
 {
+    msg_info("BoxLagrangianConstraint") << "buildConstraintMatrix CALLED, indices size=" << d_indices.getValue().size();
     auto c = sofa::helper::getWriteAccessor(c_d);
     const auto& indices = d_indices.getValue();
 
     for (const auto idx : indices)
     {
         MatrixDerivRowIterator c_it = c->writeLine(cIndex++);
+        //c_it.setCol(idx, Coord(1,0,1)); //pour tester avec vec3
         c_it.setCol(idx, Coord(1,0,0,0,0,0));
     }
 }

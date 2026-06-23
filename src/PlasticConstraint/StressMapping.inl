@@ -104,6 +104,10 @@ void StressMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mparams*/, 
     for (Index i = 0; i < X0.size(); i++)
         U[i] = X[i] - X0[i];
 
+    msg_info("StressMapping") << "apply() : nNodes=" << X.size() << " nTetras=" << tetras.size();
+    for (Index i = 0; i < std::min<Index>(X0.size(), 5); i++)
+        msg_info("StressMapping") << "  U[" << i << "] = " << U[i];
+
     for (size_t i = 0; i < tetras.size(); ++i)
     {
         type::Vec<6,Real> vStrain;
@@ -150,6 +154,9 @@ void StressMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mparams*/, 
             s[k] += lambda*traceStrain;
         
         out[i] = s;
+
+        if (i < 5)
+            msg_info("StressMapping") << "  tetra " << i << " : strain=" << vStrain << " stress=" << s;
     }
     
 }
@@ -235,6 +242,7 @@ template<class TIn, class TOut>
 void StressMapping<TIn, TOut>::applyJT(const core::MechanicalParams* /*mparams*/, Data<InVecDeriv>& dOut, const Data<VecDeriv>& dIn)
 {
 
+    msg_info("StressMapping") << "applyJT(vec) CALLED";
     helper::WriteAccessor<Data<InVecDeriv>> out = dOut;
     helper::ReadAccessor<Data<VecDeriv>>    in  = dIn;
 
@@ -244,32 +252,34 @@ void StressMapping<TIn, TOut>::applyJT(const core::MechanicalParams* /*mparams*/
     Real y = d_youngModulus.getValue()[0];
     Real p = d_poissonRatio.getValue()[0];
 
+    msg_info("StressMapping") << "applyJT(vec) : nTetras=" << tetras.size();
 
     for (size_t i = 0; i < tetras.size(); ++i)
     {
         const auto& it   = tetras[i];
         const Mat44& shf = elemShapeFun[i];
-        const VoigtTensor& s = in[i];
+        const VoigtTensor& eps = in[i];
+        if (i<5)
+            msg_info("StressMapping") << " val eps=" << eps;
 
-        Real trSigma = s[0] + s[1] + s[2];
-        VoigtTensor eps; //epsilon
+        Real trEps = eps[0] + eps[1] + eps[2];
+        VoigtTensor s; //epsilon
 
-        for (Index k = 0; k < 3; k++)
-            eps[k] = ((1+p) * s[k] - p * trSigma) / y;
-        for (Index k = 3; k < 6; k++)
-            eps[k] = ((1+p) * s[k]) / y;
+        for (Index k = 0; k < 6; k++)
+                s[k] = (eps[k] + (p/(1-2*p))*trEps) / (y/(1+p));
     
         Mat33 gradU;
         for (Index k = 0; k < 3; k++)
-            gradU(k, k) = eps[k]; //remplit la diagonale
-        gradU(1,2) = gradU(2,1) = eps[3];
-        gradU(0,2) = gradU(2,0) = eps[4];
-        gradU(0,1) = gradU(1,0) = eps[5];
+            gradU(k, k) = s[k]; //remplit la diagonale
+        gradU(1,2) = gradU(2,1) = s[3];
+        gradU(0,2) = gradU(2,0) = s[4];
+        gradU(0,1) = gradU(1,0) = s[5];
 
         for (Index m = 0; m < 4; m++)
             for (Index k = 0; k < 3; k++)
                 for (Index l = 0; l < 3; l++)
                     out[it[m]][k] += shf(l+1, m) * gradU(k, l);
+        
     }
  //recuperer sigma (the stress)
  //appliquer la formule de la loi de hooke pour trouver epsilon :
@@ -281,16 +291,22 @@ void StressMapping<TIn, TOut>::applyJT(const core::MechanicalParams* /*mparams*/
  //retrouver U depuis epsilon en utilisant la transposee de shf 
  // U = eps * shfT
 
+    for (Index n = 0; n < std::min<Index>(out.size(), 5); n++)
+        msg_info("StressMapping") << "  out[" << n << "] = " << out[n];
 }
 
 template <class TIn, class TOut>
 void StressMapping<TIn, TOut>::applyJT(const core::ConstraintParams* /*cparams*/, Data<InMatrixDeriv>& dOut, const Data<MatrixDeriv>& dIn)
 {
 
+    msg_info("StressMapping") << "applyJT(matrix) CALLED";
     InMatrixDeriv& out = *dOut.beginEdit();
     const MatrixDeriv& in = dIn.getValue();
 
     if (!m_topology) return;
+
+    msg_info("StressMapping") << "applyJT(matrix) : in row count="
+        << std::distance(in.begin(), in.end());
 
     const auto& tetras = m_topology->getTetrahedra();
     Real y = d_youngModulus.getValue()[0];
@@ -299,29 +315,38 @@ void StressMapping<TIn, TOut>::applyJT(const core::ConstraintParams* /*cparams*/
     for (typename Out::MatrixDeriv::RowConstIterator rowIt = in.begin(); rowIt != in.end(); ++rowIt)
     {
         auto o = out.writeLine(rowIt.index());
+        msg_info("StressMapping") << "  row " << rowIt.index();
         for (typename Out::MatrixDeriv::ColConstIterator colIt = rowIt.begin(); colIt != rowIt.end(); ++colIt)
         {
             // colIt.index() = index du tétraèdre
             // colIt.val() = VoigtTensor (6 composantes de stress)
             const Index tetraIdx = colIt.index();
-            const VoigtTensor& s = colIt.val();
+            //const VoigtTensor& s = colIt.val();
+            const VoigtTensor& eps = colIt.val();
+            msg_info("StressMapping") << "    col tetraIdx=" << tetraIdx << " val=" << eps;
             const auto& it  = tetras[tetraIdx];
             const Mat44& shf = elemShapeFun[tetraIdx];
 
-            Real trSigma = s[0] + s[1] + s[2];
-            VoigtTensor eps;
+            // Real trSigma = s[0] + s[1] + s[2];
+            // VoigtTensor eps;
             
-            for (Index k = 0; k < 3; k++)
-                eps[k] = ((1+p) * s[k] - p * trSigma) / y;
-            for (Index k = 3; k < 6; k++)
-                eps[k] = ((1+p) * s[k]) / y;
+            Real trEps = eps[0] + eps[1] + eps[2];
+            VoigtTensor s;
+
+            // for (Index k = 0; k < 3; k++)
+            //     eps[k] = ((1+p) * s[k] - p * trSigma) / y;
+            // for (Index k = 3; k < 6; k++)
+            //     eps[k] = ((1+p) * s[k]) / y;
         
+            for (Index k = 0; k < 6; k++)
+                s[k] = (eps[k] + (p/(1-2*p))*trEps) / (y/(1+p));
+
             Mat33 gradU;
             for (Index k = 0; k < 3; k++)
-                gradU(k, k) = eps[k]; //remplit la diagonale
-            gradU(1,2) = gradU(2,1) = eps[3];
-            gradU(0,2) = gradU(2,0) = eps[4];
-            gradU(0,1) = gradU(1,0) = eps[5];
+                gradU(k, k) = s[k]; //remplit la diagonale
+            gradU(1,2) = gradU(2,1) = s[3];
+            gradU(0,2) = gradU(2,0) = s[4];
+            gradU(0,1) = gradU(1,0) = s[5];
 
             for (Index m = 0; m < 4; m++)
                 for (Index k = 0; k < 3; k++)
@@ -331,6 +356,13 @@ void StressMapping<TIn, TOut>::applyJT(const core::ConstraintParams* /*cparams*/
                         o.addCol(it[m], d);
                 }
         }
+    }
+    msg_info("StressMapping") << "applyJT(matrix) out after computation:";
+    for (auto rowIt = out.begin(); rowIt != out.end(); ++rowIt)
+    {
+        msg_info("StressMapping") << "  row " << rowIt.index();
+        for (auto colIt = rowIt.begin(); colIt != rowIt.end(); ++colIt)
+            msg_info("StressMapping") << "    col " << colIt.index() << " = " << colIt.val();
     }
     dOut.endEdit();
  //recuperer colonnes des matrices et appliquer le meme processus que dans le applyJT precedent sur chaque colonne
