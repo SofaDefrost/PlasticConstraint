@@ -88,7 +88,7 @@ public:
 
     void init() override;
 
-    void apply(const core::MechanicalParams* mparams, Data<VecCoord>& out, const Data<InVecCoord>& in) override; 
+    void apply(const core::MechanicalParams* mparams, Data<VecCoord>& out, const Data<InVecCoord>& in) override;
 
     void applyJ(const core::MechanicalParams *mparams, Data<VecDeriv>& out, const Data<InVecDeriv>& in) override;
 
@@ -96,7 +96,7 @@ public:
 
     void applyJT(const core::ConstraintParams *cparams, Data<InMatrixDeriv>& out, const Data<MatrixDeriv>& in) override;
 
-    const sofa::linearalgebra::BaseMatrix* getJ() override;
+    // const sofa::linearalgebra::BaseMatrix* getJ() override;
 
     void handleTopologyChange() override;
 
@@ -113,7 +113,7 @@ protected:
                BaseLink::FLAG_STOREPATH> l_inputTopology;
 
     sofa::core::topology::BaseMeshTopology* m_topology;
-    
+
     typedef type::VecNoInit<6,Real> VoigtTensor;
 
     /// structures used to compute vonMises stress
@@ -127,6 +127,7 @@ public:
     Data<sofa::type::vector<Real>> d_youngModulus;
     Data<sofa::type::vector<Real>> d_poissonRatio;
     type::vector<Mat44> elemShapeFun;
+    type::vector<type::Mat<6, 12, Real>> B; // Discrete divergence operator
 
 
 };

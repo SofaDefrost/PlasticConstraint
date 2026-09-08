@@ -41,6 +41,7 @@ void StressMapping<TIn, TOut>::init()
 
     helper::ReadAccessor<Data<InVecCoord>> X0 = d_initialPoints;
     elemShapeFun.resize(nTetras);
+    B.resize(nTetras);
 
     for (size_t i = 0; i < nTetras; ++i)
     {
@@ -54,31 +55,25 @@ void StressMapping<TIn, TOut>::init()
         const bool canInvert = type::invertMatrix(elemShapeFun[i], matVert);
         assert(canInvert);
         SOFA_UNUSED(canInvert);
-    }
 
-    // Build J: (nTetras * NOut) x (nNodes * NIn)
-    // Each output row i has 4 entries of 0.25 at columns t[0..3]
-    J.compressedMatrix.resize(nTetras * NOut, nNodes * NIn);
-    J.compressedMatrix.reserve(nTetras * 4 * NOut);
+        Mat44& shf = elemShapeFun[i];
 
-    for (size_t i = 0; i < nTetras; ++i)
-    {
-        const auto& t = tetras[i];
+        for (Index node = 0; node < 4; node++){
+            B[i][0][node*3] = shf(1,node);
+            B[i][1][node*3+1] = shf(2,node);
+            B[i][2][node*3+2] = shf(3,node);
 
-        sofa::type::fixed_array<sofa::Index, 4> nodes = { t[0], t[1], t[2], t[3] };
-        std::sort(nodes.begin(), nodes.end());
+            B[i][3][node*3+2] = 0.5*shf(2,node) ;
+            B[i][3][node*3+1] = 0.5*shf(3,node) ;
 
-        for (unsigned r = 0; r < NOut; ++r)
-        {
-            const auto row = NOut * i + r;
-            J.compressedMatrix.startVec(row);
-            for (auto nodeIdx : nodes)
-            {
-                J.compressedMatrix.insertBack(row, NIn * nodeIdx + r) = (OutReal)0.25;
-            }
+            B[i][4][node*3+2] = 0.5*shf(1,node) ;
+            B[i][4][node*3] = 0.5*shf(3,node) ;
+
+            B[i][5][node*3+1] = 0.5*shf(1,node) ;
+            B[i][5][node*3] = 0.5*shf(2,node) ;
         }
+
     }
-    J.compressedMatrix.finalize();
 }
 
 template <class TIn, class TOut>
@@ -94,50 +89,40 @@ void StressMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mparams*/, 
     const auto& tetras = m_topology->getTetrahedra();
     out.resize(tetras.size());
 
+    type::Vec<12,Real> uFlatten;
     InVecCoord U;
     U.resize(X.size());
     for (Index i = 0; i < X0.size(); i++)
         U[i] = X[i] - X0[i];
 
+    type::Vec<6,Real> vStrain;
+    Real y = d_youngModulus.getValue()[0];
+    Real p = d_poissonRatio.getValue()[0];
+
     for (size_t i = 0; i < tetras.size(); ++i)
     {
-        type::Vec<6,Real> vStrain;
-        Mat33 gradU;
-        const auto& it = tetras[i];
-        Mat44& shf = elemShapeFun[i];
 
-        /// compute gradU
-        for (Index k = 0; k < 3; k++) {
-            for (Index l = 0; l < 3; l++)  {
-                gradU(k,l) = 0.0;
-                for (Index m = 0; m < 4; m++)
-                    gradU(k,l) += shf(l+1,m) * U[it[m]][k];
+        const auto& it = tetras[i];
+
+        for (Index node = 0; node < 4; node++){
+            for (Index k = 0; k < 3; k++) {
+                uFlatten[node*3+k] = U[it[node]][k];
             }
         }
-
-        Mat33 strain = ((Real)0.5)*(gradU + gradU.transposed());
-
-        for (Index i = 0; i < 3; i++)
-            vStrain[i] = strain(i,i);
-        vStrain[3] = strain(1,2);
-        vStrain[4] = strain(0,2);
-        vStrain[5] = strain(0,1);
-
-        Real y = d_youngModulus.getValue()[0];
-        Real p = d_poissonRatio.getValue()[0];
+        vStrain = B[i]*uFlatten;
 
         /// stress
         Real traceStrain = vStrain[0] + vStrain[1] + vStrain[2];
         VoigtTensor s;
 
         for (Index k = 0; k < 3; k++)
-                s[k] = (vStrain[k] + (p/(1-2*p))*traceStrain) * (y/(1+p));
+            s[k] = (vStrain[k] + (p/(1-2*p))*traceStrain) * (y/(1+p));
         for (Index k = 3; k < 6; k++)
             s[k] = vStrain[k] * (y/(1+p));
-        
+
         out[i] = s;
     }
-    
+
 }
 
 template <class TIn, class TOut>
@@ -151,42 +136,29 @@ void StressMapping<TIn, TOut>::applyJ(const core::MechanicalParams* /*mparams*/,
     const auto& tetras = m_topology->getTetrahedra();
     out.resize(tetras.size());
 
+    type::Vec<12,Real> vFlatten;
+    type::Vec<6,Real> vStrain;
+    Real y = d_youngModulus.getValue()[0];
+    Real p = d_poissonRatio.getValue()[0];
+
     for (size_t i = 0; i < tetras.size(); ++i)
     {
-        type::Vec<6,Real> vStrain;
-        Mat33 gradU;
         const auto& it = tetras[i];
-        Mat44& shf = elemShapeFun[i];
 
-        /// compute gradU
-        for (Index k = 0; k < 3; k++) {
-            for (Index l = 0; l < 3; l++)  {
-                gradU(k,l) = 0.0;
-                for (Index m = 0; m < 4; m++)
-                    gradU(k,l) += shf(l+1,m) * in[it[m]][k];
+        for (Index node = 0; node < 4; node++){
+            for (Index k = 0; k < 3; k++) {
+                vFlatten[node*3+k] = in[it[node]][k];
             }
         }
-
-        Mat33 strain = ((Real)0.5)*(gradU + gradU.transposed());
-
-        for (Index i = 0; i < 3; i++)
-            vStrain[i] = strain(i,i);
-        vStrain[3] = strain(1,2);
-        vStrain[4] = strain(0,2);
-        vStrain[5] = strain(0,1);
-
-        Real y = d_youngModulus.getValue()[0];
-        Real p = d_poissonRatio.getValue()[0];
+        vStrain = B[i]*vFlatten;
 
         /// stress
         Real traceStrain = vStrain[0] + vStrain[1] + vStrain[2];
-        VoigtTensor s; 
-
+        VoigtTensor s;
         for (Index k = 0; k < 3; k++)
-                s[k] = (vStrain[k] + (p/(1-2*p))*traceStrain) * (y/(1+p));
+            s[k] = (vStrain[k] + (p/(1-2*p))*traceStrain) * (y/(1+p));
         for (Index k = 3; k < 6; k++)
             s[k] = vStrain[k] * (y/(1+p));
-
         out[i] = s;
     }
 }
@@ -203,32 +175,29 @@ void StressMapping<TIn, TOut>::applyJT(const core::MechanicalParams* /*mparams*/
     const auto& tetras = m_topology->getTetrahedra();
     Real y = d_youngModulus.getValue()[0];
     Real p = d_poissonRatio.getValue()[0];
+    type::Vec<12,Real> outFlatten;
 
     for (size_t i = 0; i < tetras.size(); ++i)
     {
         const auto& it   = tetras[i];
-        const Mat44& shf = elemShapeFun[i];
         const VoigtTensor& eps = in[i];
         Real trEps = eps[0] + eps[1] + eps[2];
-        VoigtTensor s; //epsilon
+        VoigtTensor s; //epsilon point p
 
-        for (Index k = 0; k < 3; k++)
-                s[k] = (eps[k] + (p/(1-2*p))*trEps) * (y/(1+p));
-        for (Index k = 3; k < 6; k++)
+        for (Index k = 0; k < 3; k++){
+            s[k] = (eps[k] + (p/(1-2*p))*trEps) * (y/(1+p));
+        }
+        for (Index k = 3; k < 6; k++){
             s[k] = eps[k] * (y/(1+p));
-    
-        Mat33 gradU;
-        for (Index k = 0; k < 3; k++)
-            gradU(k, k) = s[k];
-        gradU(1,2) = gradU(2,1) = s[3];
-        gradU(0,2) = gradU(2,0) = s[4];
-        gradU(0,1) = gradU(1,0) = s[5];
+        }
 
-        for (Index m = 0; m < 4; m++)
-            for (Index k = 0; k < 3; k++)
-                for (Index l = 0; l < 3; l++)
-                    out[it[m]][k] += shf(l+1, m) * gradU(k, l);
-        
+        outFlatten = B[i].transposed()*s;
+        for (Index node = 0; node < 4; node++){
+            for (Index k = 0; k < 3; k++) {
+                out[it[node]][k] += outFlatten[node*3+k];
+            }
+        }
+
     }
 }
 
@@ -252,30 +221,24 @@ void StressMapping<TIn, TOut>::applyJT(const core::ConstraintParams* /*cparams*/
             const Index tetraIdx = colIt.index();
             const VoigtTensor& eps = colIt.val();
             const auto& it  = tetras[tetraIdx];
-            const Mat44& shf = elemShapeFun[tetraIdx];
+            type::Vec<12,Real> outFlatten;
 
             Real trEps = eps[0] + eps[1] + eps[2];
             VoigtTensor s;
-        
+
             for (Index k = 0; k < 3; k++)
                 s[k] = (eps[k] + (p/(1-2*p))*trEps) * (y/(1+p));
             for (Index k = 3; k < 6; k++)
                 s[k] = eps[k] * (y/(1+p));
+            outFlatten = B[tetraIdx].transposed()*s;
 
-            Mat33 gradU;
-            for (Index k = 0; k < 3; k++)
-                gradU(k, k) = s[k];
-            gradU(1,2) = gradU(2,1) = s[3];
-            gradU(0,2) = gradU(2,0) = s[4];
-            gradU(0,1) = gradU(1,0) = s[5];
-
-            for (Index m = 0; m < 4; m++)
-                for (Index k = 0; k < 3; k++)
-                    for (Index l = 0; l < 3; l++){
-                        InDeriv d;
-                        d[k] = shf(l+1, m) * gradU(k, l);
-                        o.addCol(it[m], d);
+            for (Index node = 0; node < 4; node++){
+                for (Index k = 0; k < 3; k++) {
+                    InDeriv d;
+                    d[k] = outFlatten[node*3+k];
+                    o.addCol(it[node], d);
                 }
+            }
         }
     }
     dOut.endEdit();
@@ -289,11 +252,11 @@ void StressMapping<TIn, TOut>::handleTopologyChange()
         this->init();
 }
 
-template <class TIn, class TOut>
-const sofa::linearalgebra::BaseMatrix* StressMapping<TIn, TOut>::getJ()
-{
-    return &J;
-}
+// template <class TIn, class TOut>
+// const sofa::linearalgebra::BaseMatrix* StressMapping<TIn, TOut>::getJ()
+// {
+//     return &J;
+// }
 
 template <class TIn, class TOut>
 const typename StressMapping<TIn, TOut>::js_type* StressMapping<TIn, TOut>::getJs()
