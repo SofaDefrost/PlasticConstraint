@@ -13,17 +13,19 @@ namespace plasticconstraint::constraint
 class BoxLagrangianConstraintResolution1Dof : public sofa::core::behavior::ConstraintResolution
 {
 protected:
-    double _invW, _w, _min, _max, _force ;
+    double _invW, _w, _limit, _force ;
+    bool _min;
 
 
 public:
 
-    BoxLagrangianConstraintResolution1Dof(const double &min, const double &max, const double &force)
+    BoxLagrangianConstraintResolution1Dof(const double &limit, const bool &min, const double &force)
         : sofa::core::behavior::ConstraintResolution(1)
+        , _limit(limit)
         , _min(min)
-        , _max(max)
         , _force(force)
-    { 
+
+    {
     }
 
     void init(int line, SReal** w, SReal*force) override
@@ -37,13 +39,22 @@ public:
     {
         const double dfree = d[line] - _w * force[line] + _force * _w;
 
-        if (dfree > _max)
-            force[line] = (_max - dfree) * _invW + _force;
-        else if (dfree < _min)
-            force[line] = (_min - dfree) * _invW + _force;
+        if (_min){
+            if (dfree < _limit)
+                force[line] = (_limit - dfree) * _invW ;
+            else
+                force[line] = 0.0;
+        }
         else
-            force[line] = _force;
+        {
+            if (dfree > _limit)
+                force[line] = (_limit - dfree) * _invW ;
+            else
+                force[line] = 0.0;
+        }
+
     }
+
 };
 
 template< class DataTypes >
@@ -65,22 +76,27 @@ public:
     typedef sofa::core::objectmodel::Data<VecCoord>		DataVecCoord;
     typedef sofa::core::objectmodel::Data<VecDeriv>		DataVecDeriv;
     typedef sofa::core::objectmodel::Data<MatrixDeriv>    DataMatrixDeriv;
+    /// Symmetrical tensor written as a vector following the Voigt notation
+    typedef sofa::type::VecNoInit<6,Real> VoigtTensor;
+
 
 protected:
 
 
     sofa::Data<sofa::type::vector<unsigned int>> d_indices; ///< indices of the stop constraints
-    sofa::Data<SReal> d_min; ///< minimum value accepted
-    sofa::Data<SReal> d_max; ///< maximum value accepted
+    sofa::Data<SReal> d_limit; ///< limit value accepted
+    sofa::Data<bool> d_min; ///< is the limit a minimum ? (if not it is a maximum)
     sofa::Data<sofa::type::vector<double>> d_force;
-    sofa::type::vector<double> _oldlambda;
+    sofa::Data<sofa::type::vector<VoigtTensor>> d_plasticStrain;
+    sofa::Data<sofa::type::vector<sofa::type::vector<double>>> d_deviator;
+    sofa::Data<int> d_dofPlastic;
 
-    
 
     BoxLagrangianConstraint(MechanicalState* object = nullptr);
 
     virtual ~BoxLagrangianConstraint() {}
 
+    // virtual void init() override;
 
     virtual sofa::type::vector<std::string> getConstraintIdentifiers() //override final
     {
@@ -105,7 +121,8 @@ public:
 };
 
 #if !defined(PLASTICCONSTRAINT_BOXLAGRANGIANCONSTRAINT_CPP)
-extern template class SOFA_COMPONENT_CONSTRAINT_LAGRANGIAN_MODEL_API BoxLagrangianConstraint<defaulttype::Vec1Types>;
+extern template class SOFA_COMPONENT_CONSTRAINT_LAGRANGIAN_MODEL_API BoxLagrangianConstraint<sofa::defaulttype::Vec1Types>;
+extern template class SOFA_COMPONENT_CONSTRAINT_LAGRANGIAN_MODEL_API BoxLagrangianConstraint<sofa::defaulttype::Vec6Types>;
 
 #endif
 

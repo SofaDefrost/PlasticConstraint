@@ -1,0 +1,142 @@
+#pragma once
+#include <PlasticConstraint/config.h.in>
+#include <PlasticConstraint/LinearMapping.h>
+
+#include <sofa/linearalgebra/EigenSparseMatrix.h>
+#include <sofa/core/Mapping.h>
+#include <sofa/core/Mapping.inl>
+#include <sofa/defaulttype/VecTypes.h>
+#include <sofa/defaulttype/RigidTypes.h>
+#include <sofa/type/vector.h>
+#include <sofa/type/Mat.h>
+#include <sofa/core/DataEngine.h>
+#include <sofa/core/topology/BaseMeshTopology.h>
+#include <sofa/core/objectmodel/Link.h>
+
+namespace sofa::component::mapping::linear
+{
+
+template <class TIn, class TOut>
+class DeviatoricMapping : public LinearMapping<TIn, TOut>
+
+
+{
+public:
+    SOFA_CLASS(SOFA_TEMPLATE2(DeviatoricMapping,TIn,TOut), SOFA_TEMPLATE2(LinearMapping,TIn,TOut));
+
+    typedef LinearMapping<TIn, TOut> Inherit;
+    typedef TIn In;
+    typedef TOut Out;
+
+    typedef typename In::Real			Real;
+    typedef typename In::VecCoord		InVecCoord;
+    typedef typename In::VecDeriv		InVecDeriv;
+    typedef typename In::Coord			InCoord;
+    typedef typename In::Deriv			InDeriv;
+    typedef typename In::MatrixDeriv	InMatrixDeriv;
+    typedef Data<InVecCoord> InDataVecCoord;
+    typedef Data<InVecDeriv> InDataVecDeriv;
+
+    typedef typename Out::VecCoord		VecCoord;
+    typedef typename Out::VecDeriv		VecDeriv;
+    typedef typename Out::Coord			Coord;
+    typedef typename Out::Deriv			Deriv;
+    typedef typename Out::MatrixDeriv	MatrixDeriv;
+
+    typedef Out OutDataTypes;
+    typedef typename OutDataTypes::Real     OutReal;
+    typedef typename OutDataTypes::VecCoord OutVecCoord;
+    typedef typename OutDataTypes::VecDeriv OutVecDeriv;
+    typedef Data<OutVecCoord> OutDataVecCoord;
+    typedef Data<OutVecDeriv> OutDataVecDeriv;
+
+    enum
+    {
+        N = OutDataTypes::spatial_dimensions
+    };
+    enum
+    {
+        NIn = sofa::defaulttype::DataTypeInfo<InDeriv>::Size
+    };
+    enum
+    {
+        NOut = sofa::defaulttype::DataTypeInfo<Deriv>::Size
+    };
+
+    typedef type::Mat<N, N, Real> Mat;
+
+protected:
+    DeviatoricMapping()
+        : Inherit()
+        , l_inputTopology(initLink("inputTopology", "Link to the input topology"))
+        , m_topology(nullptr)
+        , d_youngModulus(initData(&d_youngModulus, {Real(5000)}, "youngModulus", "FEM Young's Modulus"))
+        , d_poissonRatio(initData(&d_poissonRatio, {Real(0.45)}, "poissonRatio", "FEM Poisson Ratio"))
+        , d_deviator(initData(&d_deviator, "deviateur", "derivée du deviateur au pas de temps courant"))
+
+    {
+        Js.resize( 1 );
+        Js[0] = &J;
+    }
+
+    virtual ~DeviatoricMapping()
+    {
+    }
+
+public:
+
+    bool sameTopology() const override { return true; }
+
+    void init() override;
+
+    void apply(const core::MechanicalParams* mparams, Data<VecCoord>& out, const Data<InVecCoord>& in) override;
+
+    void applyJ(const core::MechanicalParams *mparams, Data<VecDeriv>& out, const Data<InVecDeriv>& in) override;
+
+    void applyJT(const core::MechanicalParams *mparams, Data<InVecDeriv>& out, const Data<VecDeriv>& in) override;
+
+    void applyJT(const core::ConstraintParams *cparams, Data<InMatrixDeriv>& out, const Data<MatrixDeriv>& in) override;
+
+    // const sofa::linearalgebra::BaseMatrix* getJ() override;
+
+    void handleTopologyChange() override;
+
+protected:
+
+    typedef linearalgebra::EigenSparseMatrix<TIn, TOut> eigen_type;
+    eigen_type J;
+
+    typedef type::vector< linearalgebra::BaseMatrix* > js_type;
+    js_type Js;
+
+    SingleLink<DeviatoricMapping<TIn, TOut>,
+               sofa::core::topology::BaseMeshTopology,
+               BaseLink::FLAG_STOREPATH> l_inputTopology;
+
+    sofa::core::topology::BaseMeshTopology* m_topology;
+
+    typedef type::VecNoInit<6,Real> VoigtTensor;
+    /// structures used to compute vonMises stress
+    typedef type::Mat<4, 4, Real> Mat44;
+    typedef type::Mat<3, 3, Real> Mat33;
+
+public:
+
+    const js_type* getJs() override;
+    Data<InVecCoord> d_initialPoints;
+    Data<sofa::type::vector<Real>> d_youngModulus;
+    Data<sofa::type::vector<Real>> d_poissonRatio;
+    Data<sofa::type::vector<type::vector<Real>>> d_deviator;
+    type::vector<Mat44> elemShapeFun;
+    type::vector<type::Vec<6, Real>> d_sigma; // Discrete divergence operator
+
+
+};
+
+#if !defined(PLASTICCONSTRAINT_DEVIATORICMAPPING_CPP)
+
+extern template class SOFA_COMPONENT_MAPPING_LINEAR_API DeviatoricMapping< defaulttype::Vec6Types, defaulttype::Vec1Types >;
+
+#endif
+
+} // namespace sofa::component::mapping::linear

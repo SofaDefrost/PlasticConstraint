@@ -3,6 +3,7 @@
 
 namespace sofa::component::mapping::linear {
     extern void registerStressMapping(sofa::core::ObjectFactory* factory);
+extern void registerDeviatoricMapping(sofa::core::ObjectFactory* factory);
 }
 
 namespace plasticconstraint::constraint {
@@ -19,6 +20,7 @@ void initializePlugin()
         first = false;
         sofa::core::ObjectFactory* factory = sofa::core::ObjectFactory::getInstance();
         sofa::component::mapping::linear::registerStressMapping(factory);
+        sofa::component::mapping::linear::registerDeviatoricMapping(factory);
         plasticconstraint::constraint::registerBoxLagrangianConstraint(factory);
     }
 }

@@ -9,12 +9,14 @@ set(HEADER_FILES
     src/PlasticConstraint/init.h
     src/PlasticConstraint/LinearMapping.h
     src/PlasticConstraint/StressMapping.h
+    src/PlasticConstraint/DeviatoricMapping.h
     src/PlasticConstraint/BoxLagrangianConstraint.h
 )
 
 set(SOURCE_FILES
     src/PlasticConstraint/init.cpp
     src/PlasticConstraint/StressMapping.cpp
+    src/PlasticConstraint/DeviatoricMapping.cpp
     src/PlasticConstraint/BoxLagrangianConstraint.cpp
 )
 
