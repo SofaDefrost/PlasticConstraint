@@ -1,6 +1,7 @@
 # PlasticConstraint
 
-![Elastic cube compressed on the left versus plastic on the right](doc/images/softPlasticCubeCompressing.png)
+![](doc/images/softPlasticCubeCompressing.png)
+Elastic cube compressed on the left versus plastic on the right
 
 ## Description
 A SOFA plugin to simulate perfect plasticity from a lagrangian constraint, following similar principle to [this paper](https://hal.science/hal-05705273/document) in a geomechanics application.
