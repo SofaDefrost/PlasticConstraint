@@ -1,7 +1,17 @@
 # PlasticConstraint
 
-## Description
-A SOFA plugin experimenting plasticity defined by a constraint
+![](doc/images/softPlasticCubeCompressing.png)
 
-The version presented here is minimal and only works for objects modeled using tetrahedrons, applies the same constraint to every element and only constrains the first stress element.
-The scene FingerStopper2 can be used as a demonstration of the effects of the constraint. It contains 2 fingers, one that is not constrained and stays in the neutral position once animated, and the other which can be moved with the cable and undergoes the plastic constraint
+
+## Description
+A SOFA plugin to simulate perfect plasticity from a lagrangian constraint, following similar principle to [this paper](https://hal.science/hal-05705273/document) in a geomechanics application.
+
+In this current version, it only applies to simulations using TetrahedronFEMForceField in small deformations.
+To apply plasticity, a child node has to be created containing a MechanicalObject gathering stress, a StressMapping to project tetraheda degrees of freedom to stress within elements and a BoxLagrangianConstraint to constrain the stress within a user-given limit.
+To use the plugin, you have to take the TetrahedronFEMForceField.h and .inl files from the plugin to replace the ones from SOFA.
+
+## Authors
+- Alexandra Militan-Mocanu, Olivier Goury
+
+## License
+- GPL
